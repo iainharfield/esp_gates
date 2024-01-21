@@ -55,6 +55,7 @@ cntrlState GateCntrlState; // Create a controller
 #define CmdStateWE "/house/cntrl/outside-gates-front/we-command"			// UI Button press
 #define CommandWDTimes "/house/cntrl/outside-gates-front/wd-control-times"  // Times message from either UI or Python app
 #define CommandWETimes "/house/cntrl/outside-gates-front/we-control-times"  // Times message from either UI or MySQL via Python app
+#define GateState "/house/cntrl/outside-gates-front/state"					// The State of the Gates "AUTO", "MAN", "OPEN", "CLOSE"
 
 
 //        Type string : outsidegates-front-state [stateTopic="/house/cntrl/outside-gates-front/state", commandTopic="/house/cntrl/outside-gates-front/state"]
@@ -103,6 +104,8 @@ int gateDemand  = 0;
 #define OPEN   1   // pin HIGH
 
 devConfig espDevice;
+
+bool bManMode = false;
 
 void setup()
 {
@@ -156,6 +159,34 @@ void loop()
 	ArduinoOTA.handle();
 
 	handleTelnet();
+	
+  	if (digitalRead(GATEManualStatus) == 1) 				// means manual switch ON and gates forced to stay open
+  	{
+  		//bManMode = true;
+  		//gateControl(relay_pin, HIGH);
+
+		if (bManMode == false)
+		{
+  			mqttLog("Manually held open", REPORT_WARN, true, true);
+			mqttClient.publish(GateState, 1, true, "MAN"); // not sure this will work as whan not MANual what is state?
+			bManMode = true;
+		}
+
+  		//client.publish(outTopicGateManual, "MAN");
+		//mqttClient.publish(GateState, 1, true, "MAN"); // not sure this will work as whan not MANual what is state?
+  		//client.publish(outTopic, "MAN");
+  	}
+  	else
+  	{
+  		//client.publish(outTopicGateManual, "AUTO");
+  		//processState();
+  		// FIX THIS - Need execute a run against time of day to decide whether the gate opens of close - or can we wait unti next TOD?
+		if (bManMode == true)
+		{
+			bManMode = false;
+			GateCntrlState.processCntrlTOD_Ext();
+		}
+  	}
 }
 
 //****************************************************************
@@ -200,18 +231,18 @@ bool processCntrlMessageApp_Ext(char *mqttMessage, const char *onMessage, const 
 void appMQTTTopicSubscribe()
 {
 	//GateCntrlState.setWDUIcommandStateTopic(StateDownstairsRuntime);
-	//GateCntrlState.setWDCntrlTimesTopic(CommandDownstairsWDTimes);
-	//GateCntrlState.setWDUIcommandStateTopic(CmdStateDownstairsWD);
+	GateCntrlState.setWDCntrlTimesTopic(CommandWDTimes);
+	GateCntrlState.setWDUIcommandStateTopic(CmdStateWD);
 	//GateCntrlState.setWECntrlRunTimesStateTopic(StateDownstairsRuntime);
-	//GateCntrlState.setWECntrlTimesTopic(CommandDownstairsWETimes);
-	//GateCntrlState.setWEUIcommandStateTopic(CmdStateDownstairsWE);
+	GateCntrlState.setWECntrlTimesTopic(CommandWETimes);
+	GateCntrlState.setWEUIcommandStateTopic(CmdStateWE);
 }
 
 void app_WD_on(void *cid)
 {
 	if (coreServices.getWeekDayState() == 1)			// 1 means weekday
 	{
-		setGates(cid, OPEN, "WD ON", relay_pin);
+		setGates(cid, OPEN, "WD OPEN", relay_pin);
 	}	
 }
 
@@ -219,7 +250,7 @@ void app_WD_off(void *cid)
 {
 	if (coreServices.getWeekDayState() == 1)			// 1 means weekday
 	{
-		setGates(cid, CLOSE, "WD OFF", relay_pin);
+		setGates(cid, CLOSE, "WD CLOSE", relay_pin);
 	}	
 }
 
@@ -227,7 +258,7 @@ void app_WE_on(void *cid)
 {
 	if (coreServices.getWeekDayState() == 0)			// 0 means weekend
 	{
-		setGates(cid, OPEN, "WE ON", relay_pin);
+		setGates(cid, OPEN, "WE OPEN", relay_pin);
 	}	
 }
 
@@ -235,7 +266,7 @@ void app_WE_off(void *cid)
 {
 	if (coreServices.getWeekDayState() == 0)			// 0 means weekend
 	{
-		setGates(cid, CLOSE, "WE OFF", relay_pin);
+		setGates(cid, CLOSE, "WE CLOSE", relay_pin);
 	}	
 }
 
