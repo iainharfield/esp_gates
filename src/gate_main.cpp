@@ -57,6 +57,9 @@ cntrlState GateCntrlState; // Create a controller
 #define CommandWETimes "/house/cntrl/outside-gates-front/we-control-times"  // Times message from either UI or MySQL via Python app
 #define GateState "/house/cntrl/outside-gates-front/state"					// The State of the Gates "AUTO", "MAN", "OPEN", "CLOSE"
 
+#define WDBypass "/house/cntrl/outside-gates-front/wd-bypass_control-times" // if BYPASS then bypass WD control times - stays closed
+#define WEBypass "/house/cntrl/outside-gates-front/we-bypass_control-times" // if BYPASS then bypass WE control times - stays closed
+
 
 //        Type string : outsidegates-front-state [stateTopic="/house/cntrl/outside-gates-front/state", commandTopic="/house/cntrl/outside-gates-front/state"]
 //        Type string : outsidegates-front-lwt [stateTopic="/house/cntrl/outside-gates-front/lwt"]
@@ -169,7 +172,7 @@ void loop()
 		{
   			mqttLog("Manually held open", REPORT_WARN, true, true);
 			mqttClient.publish(GateState, 1, true, "MAN"); // not sure this will work as whan not MANual what is state?
-			bManMode = true;
+			bManMode = true;  // this just to avoid mqttLog from spuing out gzillions of messages in the loop
 		}
 
   		//client.publish(outTopicGateManual, "MAN");
@@ -183,7 +186,7 @@ void loop()
   		// FIX THIS - Need execute a run against time of day to decide whether the gate opens of close - or can we wait unti next TOD?
 		if (bManMode == true)
 		{
-			bManMode = false;
+			bManMode = false; // this just to avoid mqttLog from spuing out gzillions of messages in the loop
 			GateCntrlState.processCntrlTOD_Ext();
 		}
   	}
@@ -228,6 +231,7 @@ bool processCntrlMessageApp_Ext(char *mqttMessage, const char *onMessage, const 
 }
 
 // Subscribe to application specific topics
+// the Framework will handle these messages
 void appMQTTTopicSubscribe()
 {
 	//GateCntrlState.setWDUIcommandStateTopic(StateDownstairsRuntime);
@@ -236,6 +240,8 @@ void appMQTTTopicSubscribe()
 	//GateCntrlState.setWECntrlRunTimesStateTopic(StateDownstairsRuntime);
 	GateCntrlState.setWECntrlTimesTopic(CommandWETimes);
 	GateCntrlState.setWEUIcommandStateTopic(CmdStateWE);
+	GateCntrlState.setWDBypassTimesTopic(WDBypass);
+	GateCntrlState.setWEBypassTimesTopic(WEBypass);
 }
 
 void app_WD_on(void *cid)
