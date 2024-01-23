@@ -57,8 +57,8 @@ cntrlState GateCntrlState; // Create a controller
 #define CommandWETimes "/house/cntrl/outside-gates-front/we-control-times"  // Times message from either UI or MySQL via Python app
 #define GateState "/house/cntrl/outside-gates-front/state"					// The State of the Gates "AUTO", "MAN", "OPEN", "CLOSE"
 
-#define WDBypass "/house/cntrl/outside-gates-front/wd-bypass_control-times" // if BYPASS then bypass WD control times - stays closed
-#define WEBypass "/house/cntrl/outside-gates-front/we-bypass_control-times" // if BYPASS then bypass WE control times - stays closed
+#define WDBypass "/house/cntrl/outside-gates-front/wd-bypass-control-times" // if BYPASS then bypass WD control times - stays closed
+#define WEBypass "/house/cntrl/outside-gates-front/we-bypass-control-times" // if BYPASS then bypass WE control times - stays closed
 
 
 //        Type string : outsidegates-front-state [stateTopic="/house/cntrl/outside-gates-front/state", commandTopic="/house/cntrl/outside-gates-front/state"]
@@ -69,9 +69,6 @@ cntrlState GateCntrlState; // Create a controller
 //        Type string : outsidegates-front-times-wd [stateTopic="/house/cntrl/outside-gates-front/wd-control-times", commandTopic="/house/cntrl/outside-gates-front/wd-control-times"]
 //        Type string : outsidegates-front-times-we [stateTopic="/house/cntrl/outside-gates-front/we-control-times", commandTopic="/house/cntrl/outside-gates-front/we-control-times"]
 //        Type string : outsidegates-front-manual-state [stateTopic="/house/cntrl/outside-gates-front/manual-state"]
-
-
-
 
 #define RefreshID "FRONTGATES"
 
@@ -246,9 +243,14 @@ void appMQTTTopicSubscribe()
 
 void app_WD_on(void *cid)
 {
+	cntrlState *obj = (cntrlState *)cid;
+	
 	if (coreServices.getWeekDayState() == 1)			// 1 means weekday
 	{
-		setGates(cid, OPEN, "WD OPEN", relay_pin);
+		if (obj->getWDBypassMode() == false)			// If in Bypass mode ignore action
+		{
+			setGates(cid, OPEN, "WD OPEN", relay_pin);
+		}
 	}	
 }
 
