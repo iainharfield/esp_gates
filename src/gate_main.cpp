@@ -60,16 +60,6 @@ cntrlState GateCntrlState; // Create a controller
 #define WDBypass "/house/cntrl/outside-gates-front/wd-bypass-control-times" // if BYPASS then bypass WD control times - stays closed
 #define WEBypass "/house/cntrl/outside-gates-front/we-bypass-control-times" // if BYPASS then bypass WE control times - stays closed
 
-
-//        Type string : outsidegates-front-state [stateTopic="/house/cntrl/outside-gates-front/state", commandTopic="/house/cntrl/outside-gates-front/state"]
-//        Type string : outsidegates-front-lwt [stateTopic="/house/cntrl/outside-gates-front/lwt"]
-//        Type string : outsidegates-front-identity [stateTopic="/house/cntrl/outside-gates-front/identity"]
-//        Type string : outsidegates-front-command-wd [stateTopic="/house/cntrl/outside-gates-front/wd-command", commandTopic="/house/cntrl/outside-gates-front/wd-command"]
-//        Type string : outsidegates-front-command-we [stateTopic="/house/cntrl/outside-gates-front/we-command", commandTopic="/house/cntrl/outside-gates-front/we-command"]
-//        Type string : outsidegates-front-times-wd [stateTopic="/house/cntrl/outside-gates-front/wd-control-times", commandTopic="/house/cntrl/outside-gates-front/wd-control-times"]
-//        Type string : outsidegates-front-times-we [stateTopic="/house/cntrl/outside-gates-front/we-control-times", commandTopic="/house/cntrl/outside-gates-front/we-control-times"]
-//        Type string : outsidegates-front-manual-state [stateTopic="/house/cntrl/outside-gates-front/manual-state"]
-
 #define RefreshID "FRONTGATES"
 
 // Double Reset Detection configuration
