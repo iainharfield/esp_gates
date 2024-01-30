@@ -55,7 +55,8 @@ cntrlState GateCntrlState; // Create a controller
 #define CmdStateWE "/house/cntrl/outside-gates-front/we-command"			// UI Button press
 #define CommandWDTimes "/house/cntrl/outside-gates-front/wd-control-times"  // Times message from either UI or Python app
 #define CommandWETimes "/house/cntrl/outside-gates-front/we-control-times"  // Times message from either UI or MySQL via Python app
-#define GateState "/house/cntrl/outside-gates-front/state"					// The State of the Gates "AUTO", "MAN", "OPEN", "CLOSE"
+#define GateState "/house/cntrl/outside-gates-front/state"					// The actutal state of the Gates  "MAN", "OPEN", "CLOSE"
+#define GateMANState "/house/cntrl/outside-gates-front/manual-state"		// The the running state of the Gates "AUTO", "MAN"
 
 #define WDBypass "/house/cntrl/outside-gates-front/wd-bypass-control-times" // if BYPASS then bypass WD control times - stays closed
 #define WEBypass "/house/cntrl/outside-gates-front/we-bypass-control-times" // if BYPASS then bypass WE control times - stays closed
@@ -75,7 +76,7 @@ extern bool telnetReporting;
 //************************
 // Application specific
 //************************
-String deviceName = "Front-Gates";
+String deviceName = "outside-gates-front";
 String deviceType = "CNTRL";
 String app_id     = "GATES"; 			// configure
 
@@ -150,16 +151,20 @@ void loop()
 
 	handleTelnet();
 	
-  	if (digitalRead(GATEManualStatus) == 1) 				// means manual switch ON and gates forced to stay open
+  	if (digitalRead(GATEManualStatus) == 0) 				// means manual switch ON and gates forced to stay open
   	{
   		//bManMode = true;
   		//gateControl(relay_pin, HIGH);
 
 		if (bManMode == false)
 		{
-  			mqttLog("Manually held open", REPORT_WARN, true, true);
-			mqttClient.publish(GateState, 1, true, "MAN"); // not sure this will work as whan not MANual what is state?
+			digitalWrite(relay_pin, OPEN); 		// External switch set the gates permanently OPEN 
+			gateDemand = 1;							// Record value as digitalRead of OUT pin is not working (FIXTHIS)
+			GateCntrlState.setOutputState(1);		// Feedback the Controller tho output of the requested action
+  			mqttLog("MAN OPEN", REPORT_WARN, true, true);
+			mqttClient.publish(GateMANState, 1, true, "MAN"); // not sure this will work as whan not MANual what is state?
 			bManMode = true;  // this just to avoid mqttLog from spuing out gzillions of messages in the loop
+
 		}
 
   		//client.publish(outTopicGateManual, "MAN");
@@ -173,6 +178,12 @@ void loop()
   		// FIX THIS - Need execute a run against time of day to decide whether the gate opens of close - or can we wait unti next TOD?
 		if (bManMode == true)
 		{
+			//digitalWrite(gateDemand, OPEN); 		// External switch off - allow gates to operate normally 
+			gateDemand = 0;							// Record value as digitalRead of OUT pin is not working (FIXTHIS)
+			GateCntrlState.setOutputState(0);		// Feedback the Controller tho output of the requested action
+  			mqttLog("MAN CLOSE", REPORT_WARN, true, true);
+			mqttClient.publish(GateMANState, 1, true, "AUTO");
+
 			bManMode = false; // this just to avoid mqttLog from spuing out gzillions of messages in the loop
 			GateCntrlState.processCntrlTOD_Ext();
 		}
@@ -235,12 +246,15 @@ void app_WD_on(void *cid)
 {
 	cntrlState *obj = (cntrlState *)cid;
 	
+    mqttLog("app_WD_on", REPORT_DEBUG, true, true);
+
 	if (coreServices.getWeekDayState() == 1)			// 1 means weekday
 	{
-		if (obj->getWDBypassMode() == false)			// If in Bypass mode ignore action
-		{
+		//if (obj->getWDBypassMode() == false)			// If in Bypass mode ignore action - FIXTHIS BP mode Depricated
+		//{
 			setGates(cid, OPEN, "WD OPEN", relay_pin);
-		}
+			mqttClient.publish(GateState, 1, true, "OPEN");
+		//}
 	}	
 }
 
@@ -248,7 +262,15 @@ void app_WD_off(void *cid)
 {
 	if (coreServices.getWeekDayState() == 1)			// 1 means weekday
 	{
-		setGates(cid, CLOSE, "WD CLOSE", relay_pin);
+		if (digitalRead(GATEManualStatus) != 0)
+		{
+			setGates(cid, CLOSE, "WD CLOSE", relay_pin);
+			mqttClient.publish(GateState, 1, true, "CLOSE");
+		}
+		else
+		{	
+		    mqttLog("MAN OPEN - NOT CLOSING", REPORT_WARN, true, true);
+		}	
 	}	
 }
 
@@ -257,6 +279,7 @@ void app_WE_on(void *cid)
 	if (coreServices.getWeekDayState() == 0)			// 0 means weekend
 	{
 		setGates(cid, OPEN, "WE OPEN", relay_pin);
+		mqttClient.publish(GateState, 1, true, "OPEN");
 	}	
 }
 
@@ -265,6 +288,7 @@ void app_WE_off(void *cid)
 	if (coreServices.getWeekDayState() == 0)			// 0 means weekend
 	{
 		setGates(cid, CLOSE, "WE CLOSE", relay_pin);
+		mqttClient.publish(GateState, 1, true, "CLOSE");
 	}	
 }
 
@@ -313,18 +337,23 @@ void telnet_extension_2(char c)
 {
 	char logString[501];
 	memset(logString, 0, sizeof logString);
-	/*
-  sprintf(logString,
-				"\r%s%i\n\r%s%i\n\r%s%i\n\r%s%i\n\r%s%i\n\r%s%i\n",
-				"Upstairs Heating\t", digitalRead(HTG_UPSTAIRS_STATUS), 
-				"Upstairs Demand\t\t", upHeatDemand,
-				"Downstairs Heating\t", digitalRead(HTG_DOWNSTAIRS_STATUS),
-				"Downstairs Demand\t", downHeatDemand,
-				"Hot Water\t\t", digitalRead(HW_STATUS),
-				"Hot Water Demand\t", waterHeatDemand);
+	
+	String manSwitch = "OFF - Normal operation";
+    if (digitalRead(GATEManualStatus) == 0)
+		manSwitch = "ON - Hold gates OPEN";
+	String manMode = "false - Normal operation";
+    if (bManMode == true)
+		manMode = "true - Hold gates OPEN";
+
+
+  	sprintf(logString,
+				"\r%s%s\n\r%s%s\n\r%s%i\n",
+				"MAN Switch\t", manSwitch.c_str(), 
+				"MAN Mode\t", manMode.c_str(),
+				"Gate Demand\t", gateDemand);
 
 	printTelnet((String)logString);
-  */
+  
 }
 
 // Process any application specific telnet commannds
@@ -348,7 +377,7 @@ void setGates(void *cid, int state, String stateMsg, int gateDemand)
 
 	if (obj->getCntrlName() == "GATESFRONT")
 	{
-		digitalWrite(gateDemand, state); 					// Open valve
+		digitalWrite(gateDemand, state); 					// Open GAtes
 		if (state == OPEN)
 		{
 			gateDemand = 1;							// Record value as digitalRead of OUT pin is not working (FIXTHIS)
