@@ -287,8 +287,15 @@ void app_WE_off(void *cid)
 {
 	if (coreServices.getWeekDayState() == 0)			// 0 means weekend
 	{
-		setGates(cid, CLOSE, "WE CLOSE", relay_pin);
-		mqttClient.publish(GateState, 1, true, "CLOSE");
+		if (digitalRead(GATEManualStatus) != 0)
+		{
+			setGates(cid, CLOSE, "WE CLOSE", relay_pin);
+			mqttClient.publish(GateState, 1, true, "CLOSE");
+		}
+		else
+		{	
+		    mqttLog("MAN OPEN - NOT CLOSING", REPORT_WARN, true, true);
+		}	
 	}	
 }
 
