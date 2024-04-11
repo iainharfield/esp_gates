@@ -1,13 +1,15 @@
 // ##include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
 #include <Ticker.h>
+#include <AsyncMqttClient_Generic.hpp>
 #include <time.h>
 
 #include "hh_defines.h"
 #include "hh_utilities.h"
 #include "hh_cntrl.h"
 
-#include <AsyncMqttClient_Generic.hpp>
+// Folling line added to stop compilation error suddenly occuring in 2024???
+#include "ESPAsyncDNSServer.h"
 
 #define ESP8266_DRD_USE_RTC true
 #define ESP_DRD_USE_LITTLEFS false
