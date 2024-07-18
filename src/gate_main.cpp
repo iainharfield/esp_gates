@@ -1,7 +1,8 @@
 // ##include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
 #include <Ticker.h>
-#include <AsyncMqttClient_Generic.hpp>
+#include <AsyncMqttClient.h> 
+//#include <AsyncMqttClient_Generic.hpp>
 #include <time.h>
 
 #include "hh_defines.h"
